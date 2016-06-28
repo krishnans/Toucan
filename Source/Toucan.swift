@@ -109,7 +109,21 @@ public class Toucan : NSObject {
         self.image = Toucan.Resize.resizeImage(self.image, size: size, fitMode: .Scale)
         return self
     }
-    
+	
+	
+	@objc
+	public func tileHalf()-> Toucan {
+		self.image = Toucan.Tile.tile(self.image, tileMode: .Half)
+		return self
+	}
+	
+	@objc
+	public func tileThird()-> Toucan {
+		self.image = Toucan.Tile.tile(self.image, tileMode: .Third)
+		return self
+	}
+
+	
     /**
     Container struct for all things Resize related
     */
@@ -181,6 +195,78 @@ public class Toucan : NSObject {
             }
         }
     }
+	
+	public struct Tile {
+		
+		
+		/**
+		FitMode drives the resizing process to determine what to do with an image to
+		make it fit the given size bounds.
+		
+		- Clip:  Resizes the image to fit within the width and height boundaries without cropping or scaling the image.
+		
+		- Crop:  Resizes the image to fill the width and height boundaries and crops any excess image data.
+		
+		- Scale: Scales the image to fit the constraining dimensions exactly.
+		*/
+		public enum TileMode {
+			/**
+			Resizes the image to fit within the width and height boundaries without cropping or scaling the image.
+			The resulting image is assured to match one of the constraining dimensions, while
+			the other dimension is altered to maintain the same aspect ratio of the input image.
+			*/
+			case Half
+			
+			/**
+			Resizes the image to fill the width and height boundaries and crops any excess image data.
+			The resulting image will match the width and height constraints without scaling the image.
+			*/
+			case Third
+			
+		}
+		
+		public static func tile(image:UIImage, tileMode: TileMode = .Half) -> UIImage {
+			
+			let imgRef = Util.CGImageWithCorrectOrientation(image)
+			let originalWidth  = CGFloat(CGImageGetWidth(imgRef))
+			let originalHeight = CGFloat(CGImageGetHeight(imgRef))
+			let widthRatio = originalWidth
+			let heightRatio = originalHeight
+			
+			let scaleRatio = widthRatio > heightRatio ? widthRatio : heightRatio
+			
+			var divisionRule:CGFloat = 2
+			var height = (originalHeight/2)
+			
+			if tileMode == .Third {
+				divisionRule = 3
+				height = originalHeight/3
+			}
+			
+			
+			
+			let topImageBounds = CGRect(x: 0, y: 0, width: originalWidth, height: height)
+			let topHalf = Util.croppedImageWithRect(image, rect: topImageBounds)
+			
+			let bottomImageBounds = CGRect(x: 0, y: height, width: originalWidth, height: originalHeight - height)
+			let buttomHalf = Util.croppedImageWithRect(image, rect: bottomImageBounds)
+			
+			let cutImage = Util.drawImageWithClosure(size: CGSize(width: originalWidth, height: originalHeight)) { (size, context) in
+				
+				topHalf.drawInRect(bottomImageBounds)
+				buttomHalf.drawInRect(topImageBounds)
+				
+			}
+			
+			return Util.drawImageWithClosure(size: CGSize(width: originalWidth*2, height: originalHeight)){
+				(size, context) in
+				cutImage.drawInRect(CGRect(origin: CGPoint(x: 0, y: 0), size: CGSize(width: originalWidth, height: originalHeight)))
+				image.drawInRect(CGRect(origin: CGPoint(x: originalWidth, y: 0), size: CGSize(width: originalWidth, height: originalHeight)))
+			}
+			
+		}
+		
+	}
     
     // MARK: - Mask
     
